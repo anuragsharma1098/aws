@@ -30,6 +30,12 @@ variable "single_nat_gateway" {
   default     = false
 }
 
+variable "eks_cluster_name" {
+  description = "If set, tags subnets for EKS/ELB auto-discovery: kubernetes.io/cluster/<name>=shared on all subnets, kubernetes.io/role/elb=1 on public, kubernetes.io/role/internal-elb=1 on private. Null skips these tags entirely."
+  type        = string
+  default     = null
+}
+
 variable "tags" {
   description = "Common tags applied to all resources"
   type        = map(string)

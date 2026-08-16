@@ -8,8 +8,8 @@ data "terraform_remote_state" "global" {
 }
 
 locals {
-  name_prefix   = "${var.project_name}-${var.environment}"
-  backend_image = "${data.terraform_remote_state.global.outputs.ecr_repository_urls["backend-app"]}:${var.backend_image_tag}"
+  name_prefix  = "${var.project_name}-${var.environment}"
+  cluster_name = "${local.name_prefix}-cluster"
 
   common_tags = {
     Project     = var.project_name
@@ -25,7 +25,7 @@ module "kms" {
 
   # Every service in this environment that reads/writes ciphertext with this key.
   # cloudfront/cloudwatch are here because they need Decrypt to serve frontend assets /
-  # publish alarms to an encrypted SNS topic, not because they own any encrypted data.
+  # publish alarms to an encrypted SNS topic; eks is here for K8s Secrets envelope encryption.
   service_principals = [
     "s3.amazonaws.com",
     "secretsmanager.amazonaws.com",
@@ -33,8 +33,10 @@ module "kms" {
     "sns.amazonaws.com",
     "cloudwatch.amazonaws.com",
     "cloudfront.amazonaws.com",
+    "eks.amazonaws.com",
   ]
   enable_cloudwatch_logs = true
+  enable_cloudtrail      = true
 
   tags = local.common_tags
 }
@@ -56,17 +58,59 @@ module "vpc" {
   public_subnet_cidrs  = var.public_subnet_cidrs
   private_subnet_cidrs = var.private_subnet_cidrs
   single_nat_gateway   = var.single_nat_gateway
+  eks_cluster_name     = local.cluster_name
   tags                 = local.common_tags
+}
+
+module "eks" {
+  source = "../../modules/eks"
+
+  name                     = local.cluster_name
+  kubernetes_version       = var.kubernetes_version
+  private_subnet_ids       = module.vpc.private_subnet_ids
+  public_subnet_ids        = module.vpc.public_subnet_ids
+  endpoint_public_access   = var.eks_endpoint_public_access
+  public_access_cidrs      = var.eks_public_access_cidrs
+  kms_key_arn              = module.kms.key_arn
+  permissions_boundary_arn = module.iam_boundary.boundary_arn
+  tags                     = local.common_tags
+}
+
+module "eks_node_group" {
+  source = "../../modules/eks-node-group"
+
+  cluster_name             = module.eks.cluster_name
+  node_group_name          = "${local.name_prefix}-nodes"
+  private_subnet_ids       = module.vpc.private_subnet_ids
+  instance_types           = var.node_instance_types
+  capacity_type            = var.node_capacity_type
+  disk_size                = var.node_disk_size
+  desired_size             = var.node_desired_size
+  min_size                 = var.node_min_size
+  max_size                 = var.node_max_size
+  permissions_boundary_arn = module.iam_boundary.boundary_arn
+  tags                     = local.common_tags
+}
+
+module "eks_addons" {
+  source = "../../modules/eks-addons"
+
+  cluster_name          = module.eks.cluster_name
+  ebs_csi_irsa_role_arn = module.eks.ebs_csi_irsa_role_arn
+  tags                  = local.common_tags
+
+  depends_on = [module.eks_node_group]
 }
 
 module "security_groups" {
   source = "../../modules/security-groups"
 
-  name_prefix       = local.name_prefix
-  vpc_id            = module.vpc.vpc_id
-  alb_ingress_cidrs = var.alb_ingress_cidrs
-  container_port    = var.container_port
-  tags              = local.common_tags
+  name_prefix                   = local.name_prefix
+  vpc_id                        = module.vpc.vpc_id
+  alb_ingress_cidrs             = var.alb_ingress_cidrs
+  container_port                = var.container_port
+  eks_cluster_security_group_id = module.eks.cluster_security_group_id
+  tags                          = local.common_tags
 }
 
 module "dns" {
@@ -92,36 +136,84 @@ module "dns_cloudfront" {
   tags             = local.common_tags
 }
 
-module "alb" {
-  source = "../../modules/alb"
-
-  name                = "${local.name_prefix}-alb"
-  vpc_id              = module.vpc.vpc_id
-  public_subnet_ids   = module.vpc.public_subnet_ids
-  security_group_id   = module.security_groups.alb_sg_id
-  certificate_arn     = module.dns.certificate_arn
-  target_port         = var.container_port
-  health_check_path   = var.health_check_path
-  deletion_protection = var.alb_deletion_protection
-  tags                = local.common_tags
-}
-
+# No alb_arn: on EKS the AWS Load Balancer Controller creates the ALB dynamically from an
+# Ingress resource and associates this Web ACL itself via the
+# alb.ingress.kubernetes.io/wafv2-acl-arn annotation (see module.waf's output below).
 module "waf" {
   count  = var.enable_waf ? 1 : 0
   source = "../../modules/waf"
 
   name       = "${local.name_prefix}-waf"
-  alb_arn    = module.alb.alb_arn
   rate_limit = var.waf_rate_limit
   tags       = local.common_tags
 }
 
-module "ecs_cluster" {
-  source = "../../modules/ecs-cluster"
+# --- IRSA roles: scope AWS permissions to specific Kubernetes service accounts, not nodes ---
 
-  name                = "${local.name_prefix}-cluster"
-  enable_fargate_spot = var.environment != "prd"
-  tags                = local.common_tags
+module "irsa_lb_controller" {
+  source = "../../modules/irsa"
+
+  name                     = "${local.name_prefix}-lb-controller"
+  oidc_provider_arn        = module.eks.oidc_provider_arn
+  oidc_provider_url        = module.eks.oidc_provider_url
+  namespace                = var.lb_controller_namespace
+  service_account_name     = var.lb_controller_service_account
+  policy_json              = var.lb_controller_policy_json
+  permissions_boundary_arn = module.iam_boundary.boundary_arn
+  tags                     = local.common_tags
+}
+
+# external-dns needs an actual hosted zone to manage, so this whole role is a no-op
+# alongside everything else that's dormant until enable_dns = true.
+data "aws_iam_policy_document" "external_dns_permissions" {
+  count = var.enable_dns ? 1 : 0
+
+  statement {
+    effect    = "Allow"
+    actions   = ["route53:ChangeResourceRecordSets"]
+    resources = ["arn:aws:route53:::hostedzone/${module.dns.zone_id}"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["route53:ListHostedZones", "route53:ListResourceRecordSets", "route53:ListTagsForResource"]
+    resources = ["*"]
+  }
+}
+
+module "irsa_external_dns" {
+  count  = var.enable_dns ? 1 : 0
+  source = "../../modules/irsa"
+
+  name                     = "${local.name_prefix}-external-dns"
+  oidc_provider_arn        = module.eks.oidc_provider_arn
+  oidc_provider_url        = module.eks.oidc_provider_url
+  namespace                = var.external_dns_namespace
+  service_account_name     = var.external_dns_service_account
+  policy_json              = data.aws_iam_policy_document.external_dns_permissions[0].json
+  permissions_boundary_arn = module.iam_boundary.boundary_arn
+  tags                     = local.common_tags
+}
+
+data "aws_iam_policy_document" "external_secrets_permissions" {
+  statement {
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
+    resources = [module.rds.secret_arn, module.app_secrets.secret_arn]
+  }
+}
+
+module "irsa_external_secrets" {
+  source = "../../modules/irsa"
+
+  name                     = "${local.name_prefix}-external-secrets"
+  oidc_provider_arn        = module.eks.oidc_provider_arn
+  oidc_provider_url        = module.eks.oidc_provider_url
+  namespace                = var.external_secrets_namespace
+  service_account_name     = var.external_secrets_service_account
+  policy_json              = data.aws_iam_policy_document.external_secrets_permissions.json
+  permissions_boundary_arn = module.iam_boundary.boundary_arn
+  tags                     = local.common_tags
 }
 
 module "rds" {
@@ -151,36 +243,6 @@ module "app_secrets" {
   tags        = local.common_tags
 }
 
-module "ecs_service" {
-  source = "../../modules/ecs-service"
-
-  name                     = "${local.name_prefix}-backend"
-  cluster_arn              = module.ecs_cluster.cluster_arn
-  private_subnet_ids       = module.vpc.private_subnet_ids
-  security_group_id        = module.security_groups.app_sg_id
-  target_group_arn         = module.alb.target_group_arn
-  container_image          = local.backend_image
-  container_port           = var.container_port
-  cpu                      = var.ecs_cpu
-  memory                   = var.ecs_memory
-  desired_count            = var.ecs_desired_count
-  min_capacity             = var.ecs_min_capacity
-  max_capacity             = var.ecs_max_capacity
-  kms_key_arn              = module.kms.key_arn
-  permissions_boundary_arn = module.iam_boundary.boundary_arn
-
-  environment_variables = {
-    ENVIRONMENT = var.environment
-  }
-
-  secrets = {
-    DB_CREDENTIALS = module.rds.secret_arn
-    APP_SECRETS    = module.app_secrets.secret_arn
-  }
-
-  tags = local.common_tags
-}
-
 module "frontend" {
   source = "../../modules/s3-cloudfront"
 
@@ -200,16 +262,62 @@ module "uploads" {
   tags                 = local.common_tags
 }
 
+module "ci_artifacts" {
+  source = "../../modules/ci-artifacts"
+
+  bucket_name = var.ci_artifacts_bucket_name
+  kms_key_arn = module.kms.key_arn
+  tags        = local.common_tags
+}
+
+module "harness_oidc" {
+  source = "../../modules/harness-oidc"
+
+  name                     = "${local.name_prefix}-harness"
+  oidc_issuer_url          = var.harness_oidc_issuer_url
+  audience                 = var.harness_audience
+  subject_claim            = var.harness_subject_claim
+  ecr_push_repository_arns = values(data.terraform_remote_state.global.outputs.ecr_repository_arns)
+  ecr_pull_repository_arns = var.harness_ecr_pull_repository_arns
+  ci_artifacts_bucket_arn  = module.ci_artifacts.bucket_arn
+  eks_cluster_arn          = module.eks.cluster_arn
+  permissions_boundary_arn = module.iam_boundary.boundary_arn
+  tags                     = local.common_tags
+}
+
+module "eks_access" {
+  source = "../../modules/eks-access"
+
+  cluster_name = module.eks.cluster_name
+
+  access_entries = {
+    harness = {
+      principal_arn = module.harness_oidc.role_arn
+      policy_arns   = var.harness_eks_access_policy_arns
+      namespaces    = var.harness_eks_namespaces
+    }
+  }
+}
+
 module "monitoring" {
   source = "../../modules/monitoring"
 
-  name                    = local.name_prefix
-  alarm_email             = var.alarm_email
-  alb_arn_suffix          = module.alb.alb_arn_suffix
-  target_group_arn_suffix = module.alb.target_group_arn_suffix
-  ecs_cluster_name        = module.ecs_cluster.cluster_name
-  ecs_service_name        = module.ecs_service.service_name
-  rds_instance_id         = module.rds.db_instance_id
-  kms_key_arn             = module.kms.key_arn
-  tags                    = local.common_tags
+  name              = local.name_prefix
+  alarm_email       = var.alarm_email
+  enable_alb_alarms = false # the ALB isn't Terraform-managed on the EKS path
+  enable_ecs_alarms = false # compute is EKS, not ECS
+  rds_instance_id   = module.rds.db_instance_id
+  kms_key_arn       = module.kms.key_arn
+  tags              = local.common_tags
+}
+
+# Per-account audit trail - every AWS account needs its own, since a single trail can't span
+# separate accounts without an AWS Organizations delegation this repo doesn't assume exists.
+module "cloudtrail" {
+  source = "../../modules/cloudtrail"
+
+  trail_name      = "${local.name_prefix}-audit-trail"
+  log_bucket_name = "${local.name_prefix}-cloudtrail-logs-${var.cloudtrail_log_bucket_suffix}"
+  kms_key_arn     = module.kms.key_arn
+  tags            = local.common_tags
 }

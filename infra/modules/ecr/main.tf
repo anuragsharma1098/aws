@@ -17,6 +17,30 @@ resource "aws_ecr_repository" "this" {
   })
 }
 
+data "aws_iam_policy_document" "cross_account_pull" {
+  count = length(var.cross_account_pull_principals) > 0 ? 1 : 0
+
+  statement {
+    sid    = "CrossAccountPull"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = var.cross_account_pull_principals
+    }
+    actions = [
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:BatchGetImage",
+      "ecr:BatchCheckLayerAvailability",
+    ]
+  }
+}
+
+resource "aws_ecr_repository_policy" "cross_account_pull" {
+  for_each   = length(var.cross_account_pull_principals) > 0 ? aws_ecr_repository.this : {}
+  repository = each.value.name
+  policy     = data.aws_iam_policy_document.cross_account_pull[0].json
+}
+
 resource "aws_ecr_lifecycle_policy" "this" {
   for_each   = aws_ecr_repository.this
   repository = each.value.name

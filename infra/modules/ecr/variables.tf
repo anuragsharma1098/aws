@@ -32,6 +32,12 @@ variable "kms_key_arn" {
   type        = string
 }
 
+variable "cross_account_pull_principals" {
+  description = "Account-root or role ARNs in OTHER AWS accounts allowed to pull images from these repos - e.g. [\"arn:aws:iam::<qa-account-id>:root\", \"arn:aws:iam::<prd-account-id>:root\"] when ECR is centralized in one account (typically dev/build) and other environments' EKS clusters pull the same built image cross-account instead of rebuilding it. Empty list grants no cross-account access. Actual restriction still comes from each account's own IAM policy on the calling principal (e.g. the node role's AmazonEC2ContainerRegistryReadOnly) - this only opens the door at the resource-policy layer."
+  type        = list(string)
+  default     = []
+}
+
 variable "tags" {
   description = "Common tags applied to all resources"
   type        = map(string)

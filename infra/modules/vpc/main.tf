@@ -1,5 +1,9 @@
 locals {
   az_count = length(var.azs)
+
+  eks_shared_tags  = var.eks_cluster_name != null ? { "kubernetes.io/cluster/${var.eks_cluster_name}" = "shared" } : {}
+  eks_public_tags  = var.eks_cluster_name != null ? merge(local.eks_shared_tags, { "kubernetes.io/role/elb" = "1" }) : {}
+  eks_private_tags = var.eks_cluster_name != null ? merge(local.eks_shared_tags, { "kubernetes.io/role/internal-elb" = "1" }) : {}
 }
 
 resource "aws_vpc" "this" {
@@ -29,7 +33,7 @@ resource "aws_subnet" "public" {
   availability_zone       = var.azs[count.index]
   map_public_ip_on_launch = true
 
-  tags = merge(var.tags, {
+  tags = merge(var.tags, local.eks_public_tags, {
     Name = "${var.name}-public-${var.azs[count.index]}"
     Tier = "public"
   })
@@ -63,7 +67,7 @@ resource "aws_subnet" "private" {
   cidr_block        = var.private_subnet_cidrs[count.index]
   availability_zone = var.azs[count.index]
 
-  tags = merge(var.tags, {
+  tags = merge(var.tags, local.eks_private_tags, {
     Name = "${var.name}-private-${var.azs[count.index]}"
     Tier = "private"
   })

@@ -14,6 +14,7 @@ resource "aws_sns_topic_subscription" "email" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
+  count               = var.enable_alb_alarms ? 1 : 0
   alarm_name          = "${var.name}-alb-5xx"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -35,6 +36,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "alb_response_time" {
+  count               = var.enable_alb_alarms ? 1 : 0
   alarm_name          = "${var.name}-alb-response-time"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 3
@@ -56,6 +58,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_response_time" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "unhealthy_hosts" {
+  count               = var.enable_alb_alarms ? 1 : 0
   alarm_name          = "${var.name}-unhealthy-hosts"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -78,6 +81,7 @@ resource "aws_cloudwatch_metric_alarm" "unhealthy_hosts" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "ecs_cpu" {
+  count               = var.enable_ecs_alarms ? 1 : 0
   alarm_name          = "${var.name}-ecs-cpu"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 3
@@ -100,6 +104,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_cpu" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "ecs_memory" {
+  count               = var.enable_ecs_alarms ? 1 : 0
   alarm_name          = "${var.name}-ecs-memory"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 3

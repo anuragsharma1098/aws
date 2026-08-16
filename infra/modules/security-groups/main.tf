@@ -95,6 +95,18 @@ resource "aws_vpc_security_group_ingress_rule" "db_from_app" {
   ip_protocol                  = "tcp"
 }
 
+# EKS path: pods reach RDS via the cluster's own managed security group (nodes/pods use it
+# directly - see modules/eks's cluster_security_group_id output), not the app_sg above.
+resource "aws_vpc_security_group_ingress_rule" "db_from_eks_cluster" {
+  count                        = var.eks_cluster_security_group_id != null ? 1 : 0
+  security_group_id            = aws_security_group.db.id
+  description                  = "DB port from EKS cluster/node security group"
+  referenced_security_group_id = var.eks_cluster_security_group_id
+  from_port                    = var.db_port
+  to_port                      = var.db_port
+  ip_protocol                  = "tcp"
+}
+
 resource "aws_vpc_security_group_egress_rule" "db_all" {
   security_group_id = aws_security_group.db.id
   description       = "All outbound"

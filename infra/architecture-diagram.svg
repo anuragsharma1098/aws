@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1680 1080" role="img"
-     aria-label="AWS architecture: a client resolves DNS via Route 53, reaches the frontend through CloudFront and S3, and the backend API through WAF and an Application Load Balancer into ECS Fargate tasks running in private subnets across two AZs, which read RDS Postgres, Secrets Manager, and ECR through a NAT Gateway, all encrypted with a per-environment KMS key and monitored via CloudWatch, SNS, CloudTrail, and an IAM permissions boundary.">
+     aria-label="AWS architecture: a client resolves DNS via Route 53, reaches the frontend through CloudFront and S3, and the backend API through WAF and an Application Load Balancer into EKS worker nodes running in private subnets across two AZs, which read RDS Postgres, and pull images from ECR through a NAT Gateway. In-cluster Helm-installed controllers (AWS Load Balancer Controller, External Secrets, external-dns), all IRSA-authorized, manage the ALB, sync Secrets Manager, and write DNS records respectively. Everything is encrypted with a per-environment KMS key and monitored via CloudWatch, SNS, CloudTrail, and an IAM permissions boundary.">
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 Z" fill="#334155"/>
@@ -179,7 +179,7 @@
 
   <!-- ALB -->
   <use href="#s-alb" x="1049" y="110" width="90" height="90"/>
-  <text x="1094" y="218" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#334155">ALB (spans both AZs)</text>
+  <text x="1094" y="218" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#334155">ALB (AWS LB Controller-managed)</text>
 
   <line x1="602" y1="154" x2="1045" y2="155" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
   <rect x="700" y="130" width="150" height="16" fill="#ffffff" opacity="0.9"/>
@@ -219,14 +219,14 @@
   <rect x="680" y="430" width="430" height="340" rx="10" fill="#f4f2fb" stroke="#c9b3ff" stroke-width="1.5" stroke-dasharray="4,3"/>
   <text x="696" y="450" font-family="sans-serif" font-size="12" font-weight="600" fill="#7c3aed">Private subnet · AZ-a</text>
   <use href="#s-ecs" x="720" y="470" width="72" height="72"/>
-  <text x="756" y="558" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">ECS task (Fargate)</text>
+  <text x="756" y="558" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">EKS worker node (pods)</text>
   <use href="#s-rds" x="720" y="620" width="72" height="72"/>
   <text x="756" y="708" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">RDS Postgres (primary)</text>
 
   <rect x="1140" y="430" width="430" height="340" rx="10" fill="#f4f2fb" stroke="#c9b3ff" stroke-width="1.5" stroke-dasharray="4,3"/>
   <text x="1156" y="450" font-family="sans-serif" font-size="12" font-weight="600" fill="#7c3aed">Private subnet · AZ-b</text>
   <use href="#s-ecs" x="1180" y="470" width="72" height="72"/>
-  <text x="1216" y="558" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">ECS task (Fargate)</text>
+  <text x="1216" y="558" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">EKS worker node (pods)</text>
   <text x="1216" y="572" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">(AZ-a identical flows, omitted below)</text>
   <use href="#s-rds" x="1180" y="620" width="72" height="72" opacity="0.55"/>
   <text x="1216" y="708" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#64748b">standby · prd Multi-AZ only</text>
@@ -238,71 +238,82 @@
 
   <line x1="1180" y1="530" x2="794" y2="655" stroke="#334155" stroke-width="1.75" marker-end="url(#arrow)"/>
 
-  <!-- ECS-a exits the VPC southbound to supporting services: one trunk, then it fans out -->
-  <line x1="756" y1="542" x2="700" y2="800" stroke="#334155" stroke-width="1.75"/>
-  <circle cx="700" cy="800" r="3" fill="#334155"/>
+  <!-- EKS node-a exits the VPC southbound to ECR/CloudWatch: one trunk, then it fans out -->
+  <line x1="756" y1="542" x2="850" y2="800" stroke="#334155" stroke-width="1.75"/>
+  <circle cx="850" cy="800" r="3" fill="#334155"/>
 
-  <line x1="700" y1="800" x2="300" y2="838" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <rect x="400" y="807" width="160" height="15" fill="#ffffff" opacity="0.9"/>
-  <text x="480" y="818" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#334155">reads secret · via NAT</text>
+  <line x1="850" y1="800" x2="996" y2="838" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="865" y="810" width="150" height="15" fill="#ffffff" opacity="0.9"/>
+  <text x="940" y="821" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#334155">pulls image · via NAT</text>
 
-  <line x1="700" y1="800" x2="708" y2="838" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <rect x="628" y="807" width="155" height="15" fill="#ffffff" opacity="0.9"/>
-  <text x="705" y="818" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#334155">pulls image · via NAT</text>
+  <line x1="850" y1="800" x2="1146" y2="838" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="1035" y="810" width="150" height="15" fill="#ffffff" opacity="0.9"/>
+  <text x="1110" y="821" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#334155">writes logs · via NAT</text>
 
-  <line x1="700" y1="800" x2="912" y2="838" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <rect x="800" y="807" width="150" height="15" fill="#ffffff" opacity="0.9"/>
-  <text x="875" y="818" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#334155">writes logs · via NAT</text>
+  <!-- Supporting / account-level / in-cluster-controller row -->
+  <text x="60" y="798" font-family="sans-serif" font-size="13" font-weight="700" fill="#475569">Cluster controllers, supporting &amp; account-level services (outside the VPC)</text>
+  <text x="60" y="813" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">(the first three reuse the ALB / Secrets Manager / Route 53 glyphs above - they're Helm-installed K8s controllers, not those AWS services themselves)</text>
 
-  <!-- Supporting / global services row -->
-  <text x="60" y="798" font-family="sans-serif" font-size="13" font-weight="700" fill="#475569">Supporting &amp; account-level services (outside the VPC)</text>
+  <use href="#s-alb" x="60" y="840" width="72" height="72"/>
+  <text x="96" y="928" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">AWS LB Controller</text>
+  <text x="96" y="941" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">creates &amp; manages ALB</text>
 
-  <use href="#s-s3" x="60" y="840" width="72" height="72"/>
-  <text x="96" y="928" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">S3 · uploads</text>
+  <use href="#s-secrets" x="210" y="840" width="72" height="72"/>
+  <text x="246" y="928" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">External Secrets</text>
+  <text x="246" y="941" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">syncs Secrets Manager</text>
+  <text x="246" y="953" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">→ K8s Secret</text>
 
-  <use href="#s-secrets" x="264" y="840" width="72" height="72"/>
-  <text x="300" y="928" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">Secrets Manager</text>
-  <text x="300" y="941" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">app + DB credentials</text>
+  <use href="#s-route53" x="360" y="840" width="72" height="72"/>
+  <text x="396" y="928" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">external-dns</text>
+  <text x="396" y="941" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">writes api.&lt;domain&gt;</text>
+  <text x="396" y="953" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">→ Route 53</text>
 
-  <use href="#s-kms" x="468" y="840" width="72" height="72"/>
-  <text x="504" y="928" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">KMS (per-env CMK)</text>
+  <use href="#s-s3" x="510" y="840" width="72" height="72"/>
+  <text x="546" y="928" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">S3 · uploads</text>
 
-  <use href="#s-ecr" x="672" y="840" width="72" height="72"/>
-  <text x="708" y="928" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">ECR</text>
-  <text x="708" y="941" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">shared, infra/global</text>
+  <use href="#s-secrets" x="660" y="840" width="72" height="72"/>
+  <text x="696" y="928" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">Secrets Manager</text>
+  <text x="696" y="941" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">app + DB credentials</text>
 
-  <use href="#s-cloudwatch" x="876" y="840" width="72" height="72"/>
-  <text x="912" y="928" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">CloudWatch</text>
-  <text x="912" y="941" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">+ ALB/ECS/RDS metrics</text>
+  <use href="#s-kms" x="810" y="840" width="72" height="72"/>
+  <text x="846" y="928" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">KMS (per-env CMK)</text>
+  <text x="846" y="941" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">also: S3 (both), ECR,</text>
+  <text x="846" y="953" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">CW Logs, SNS, EKS secrets</text>
 
-  <use href="#s-sns" x="1080" y="840" width="72" height="72"/>
-  <text x="1116" y="928" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">SNS · alarms</text>
-  <text x="1116" y="941" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">email if alarm_email set</text>
+  <use href="#s-ecr" x="960" y="840" width="72" height="72"/>
+  <text x="996" y="928" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">ECR</text>
+  <text x="996" y="941" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">shared, infra/global</text>
 
-  <use href="#s-cloudtrail" x="1284" y="840" width="72" height="72"/>
-  <text x="1320" y="928" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">CloudTrail</text>
-  <text x="1320" y="941" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">records every API call</text>
+  <use href="#s-cloudwatch" x="1110" y="840" width="72" height="72"/>
+  <text x="1146" y="928" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">CloudWatch</text>
+  <text x="1146" y="941" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">+ RDS metrics</text>
 
-  <use href="#s-iam" x="1488" y="840" width="72" height="72"/>
-  <text x="1524" y="928" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">IAM boundary</text>
+  <use href="#s-sns" x="1260" y="840" width="72" height="72"/>
+  <text x="1296" y="928" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">SNS · alarms</text>
+  <text x="1296" y="941" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">email if alarm_email set</text>
+
+  <use href="#s-cloudtrail" x="1410" y="840" width="72" height="72"/>
+  <text x="1446" y="928" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">CloudTrail</text>
+  <text x="1446" y="941" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">records every API call</text>
+
+  <use href="#s-iam" x="1560" y="840" width="72" height="72"/>
+  <text x="1596" y="928" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">IAM boundary</text>
 
   <!-- KMS encrypts (dashed red) -->
-  <line x1="504" y1="838" x2="740" y2="660" stroke="#DD344C" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow-security)"/>
-  <rect x="520" y="735" width="130" height="16" fill="#ffffff" opacity="0.9"/>
-  <text x="585" y="747" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#DD344C">encrypts (KMS CMK)</text>
-  <line x1="468" y1="876" x2="336" y2="876" stroke="#DD344C" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow-security)"/>
-  <text x="468" y="941" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">also encrypts: S3 (both),</text>
-  <text x="468" y="953" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">ECR, CloudWatch Logs, SNS</text>
+  <line x1="846" y1="838" x2="756" y2="656" stroke="#DD344C" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow-security)"/>
+  <rect x="736" y="739" width="130" height="16" fill="#ffffff" opacity="0.9"/>
+  <text x="801" y="751" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#DD344C">encrypts (KMS CMK)</text>
+  <line x1="810" y1="876" x2="732" y2="876" stroke="#DD344C" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow-security)"/>
 
   <!-- CloudWatch -> SNS -->
-  <line x1="948" y1="876" x2="1076" y2="876" stroke="#334155" stroke-width="1.75" marker-end="url(#arrow)"/>
-  <rect x="958" y="858" width="80" height="15" fill="#ffffff" opacity="0.9"/>
-  <text x="998" y="869" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#334155">alarm ⇒ topic</text>
+  <line x1="1182" y1="876" x2="1258" y2="876" stroke="#334155" stroke-width="1.75" marker-end="url(#arrow)"/>
+  <rect x="1191" y="858" width="80" height="15" fill="#ffffff" opacity="0.9"/>
+  <text x="1231" y="869" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#334155">alarm ⇒ topic</text>
 
-  <!-- IAM boundary caps ECS roles (points at the nearer AZ-b task; identical for AZ-a) -->
-  <line x1="1524" y1="840" x2="1216" y2="542" stroke="#DD344C" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow-security)"/>
-  <rect x="1320" y="670" width="200" height="16" fill="#ffffff" opacity="0.9"/>
-  <text x="1420" y="682" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#DD344C">caps task/execution role permissions</text>
+  <!-- IAM boundary caps node/IRSA roles (points at the nearer AZ-b node; identical for AZ-a) -->
+  <line x1="1596" y1="840" x2="1216" y2="542" stroke="#DD344C" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow-security)"/>
+  <rect x="1287" y="662" width="200" height="16" fill="#ffffff" opacity="0.9"/>
+  <text x="1387" y="674" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#DD344C">caps node &amp; IRSA role permissions</text>
 
   <!-- Legend -->
   <line x1="60" y1="985" x2="1620" y2="985" stroke="#e2e8f0" stroke-width="1"/>

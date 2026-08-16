@@ -26,6 +26,12 @@ variable "db_port" {
   default     = 5432
 }
 
+variable "eks_cluster_security_group_id" {
+  description = "EKS cluster security group ID (modules/eks output cluster_security_group_id). If set, the database also accepts ingress from it - the EKS path, where pods use the cluster SG directly instead of this module's app_sg."
+  type        = string
+  default     = null
+}
+
 variable "tags" {
   description = "Common tags applied to all resources"
   type        = map(string)

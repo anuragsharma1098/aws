@@ -12,8 +12,19 @@ terraform {
   }
 }
 
+# Multi-account: run this once per AWS account (dev/qa/prd each get their own state bucket).
+# assume_role is optional - omit terraform_deploy_role_arn and Terraform just uses whatever
+# credentials/profile are already active for that account.
 provider "aws" {
   region = var.aws_region
+
+  dynamic "assume_role" {
+    for_each = var.terraform_deploy_role_arn != null ? [1] : []
+    content {
+      role_arn     = var.terraform_deploy_role_arn
+      session_name = "terraform-bootstrap"
+    }
+  }
 }
 
 locals {

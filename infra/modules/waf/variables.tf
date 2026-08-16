@@ -4,8 +4,9 @@ variable "name" {
 }
 
 variable "alb_arn" {
-  description = "ARN of the ALB to associate the Web ACL with"
+  description = "ARN of the ALB to associate the Web ACL with. Null skips the association - use this on EKS, where the AWS Load Balancer Controller creates the ALB dynamically and associates this Web ACL itself via the alb.ingress.kubernetes.io/wafv2-acl-arn Ingress annotation instead."
   type        = string
+  default     = null
 }
 
 variable "rate_limit" {

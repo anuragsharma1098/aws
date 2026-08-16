@@ -9,24 +9,40 @@ variable "alarm_email" {
   default     = null
 }
 
+variable "enable_alb_alarms" {
+  description = "Create ALB-related alarms. Requires alb_arn_suffix/target_group_arn_suffix. Set false when the ALB isn't Terraform-managed (e.g. the EKS path, where the AWS Load Balancer Controller creates it dynamically)."
+  type        = bool
+  default     = true
+}
+
 variable "alb_arn_suffix" {
-  description = "ARN suffix of the ALB (for CloudWatch dimensions)"
+  description = "ARN suffix of the ALB (for CloudWatch dimensions). Required if enable_alb_alarms = true."
   type        = string
+  default     = null
 }
 
 variable "target_group_arn_suffix" {
-  description = "ARN suffix of the target group (for CloudWatch dimensions)"
+  description = "ARN suffix of the target group (for CloudWatch dimensions). Required if enable_alb_alarms = true."
   type        = string
+  default     = null
+}
+
+variable "enable_ecs_alarms" {
+  description = "Create ECS service CPU/memory alarms. Set false on the EKS path."
+  type        = bool
+  default     = true
 }
 
 variable "ecs_cluster_name" {
-  description = "ECS cluster name"
+  description = "ECS cluster name. Required if enable_ecs_alarms = true."
   type        = string
+  default     = null
 }
 
 variable "ecs_service_name" {
-  description = "ECS service name"
+  description = "ECS service name. Required if enable_ecs_alarms = true."
   type        = string
+  default     = null
 }
 
 variable "rds_instance_id" {
