@@ -1,0 +1,22 @@
+# Local Terraform working directories and state - state lives in S3, never in git.
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Plan output files - may contain sensitive values, never commit them.
+*.tfplan
+*.tfplan.json
+
+# Auto-generated override files.
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Variable files that may carry local secrets/overrides.
+*.auto.tfvars
+*.auto.tfvars.json
+
+# terraform.lock.hcl IS committed on purpose (pins provider versions) - do not ignore it.
