@@ -144,6 +144,11 @@ resource "aws_db_instance" "read_replica" {
   monitoring_interval          = var.monitoring_interval
   monitoring_role_arn          = var.monitoring_interval > 0 ? aws_iam_role.enhanced_monitoring[0].arn : null
 
+  # Replicas default to 0 (no automated backups) unless set explicitly - a
+  # replica promoted to standalone (or acting as a DR failover target) needs
+  # its own backup history, not just the primary's.
+  backup_retention_period = var.backup_retention_period
+
   auto_minor_version_upgrade = true
   skip_final_snapshot        = true
 

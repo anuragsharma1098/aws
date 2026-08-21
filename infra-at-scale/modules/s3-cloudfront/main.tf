@@ -42,6 +42,14 @@ resource "aws_s3_bucket_public_access_block" "frontend" {
   restrict_public_buckets = true
 }
 
+# Access logging into the shared SSE-S3 logs bucket - no KMS grant needed
+# since the target (unlike this bucket itself) isn't SSE-KMS encrypted.
+resource "aws_s3_bucket_logging" "frontend" {
+  bucket        = aws_s3_bucket.frontend.id
+  target_bucket = aws_s3_bucket.logs.id
+  target_prefix = "s3-frontend/"
+}
+
 resource "aws_cloudfront_origin_access_control" "frontend" {
   name                              = "${var.name_prefix}-frontend-oac"
   origin_access_control_origin_type = "s3"
@@ -116,6 +124,15 @@ resource "aws_s3_bucket_public_access_block" "logs" {
   restrict_public_buckets = true
 }
 
+# Self-targeted, distinct prefix from alb/, cloudfront/, cloudfront-live/ and
+# s3-frontend/ above - S3 access logging never logs the log-delivery writes
+# themselves, so this doesn't recurse.
+resource "aws_s3_bucket_logging" "logs" {
+  bucket        = aws_s3_bucket.logs.id
+  target_bucket = aws_s3_bucket.logs.id
+  target_prefix = "s3-server-access/"
+}
+
 resource "aws_s3_bucket_server_side_encryption_configuration" "logs" {
   bucket = aws_s3_bucket.logs.id
   rule {
@@ -160,8 +177,14 @@ resource "aws_s3_bucket_policy" "logs" {
         Principal = {
           Service = "delivery.logs.amazonaws.com"
         }
-        Action   = "s3:PutObject"
-        Resource = "${aws_s3_bucket.logs.arn}/cloudfront/*"
+        Action = "s3:PutObject"
+        # cloudfront/ = frontend distribution (modules/s3-cloudfront itself);
+        # cloudfront-live/ = the live-streaming distribution (modules/live-streaming),
+        # which shares this same log bucket rather than provisioning its own.
+        Resource = [
+          "${aws_s3_bucket.logs.arn}/cloudfront/*",
+          "${aws_s3_bucket.logs.arn}/cloudfront-live/*",
+        ]
         Condition = {
           StringEquals = { "s3:x-amz-acl" = "bucket-owner-full-control" }
         }

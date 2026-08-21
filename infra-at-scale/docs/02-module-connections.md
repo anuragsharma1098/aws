@@ -92,6 +92,7 @@ flowchart TB
     KMS --> LIVE
     DNS --> LIVE
     WAF --> LIVE
+    FRONTEND -->|logs_bucket_name, logs_bucket_domain_name| LIVE
 
     subgraph "CI/CD"
         OIDC[iam-github-oidc]
@@ -139,7 +140,12 @@ flowchart TB
 - **`live-streaming`** is the one subgraph with no edge into `Compute` or
   `Data` at all — it talks to S3 directly from MediaLive, never through the
   VPC, and is switched on/off per environment via `enable_live_streaming` in
-  `terraform.tfvars` (off in `dev`, on in `staging`/`prod`).
+  `terraform.tfvars` (off in `dev`, on in `staging`/`prod`). Its one edge into
+  `Edge` isn't a request-path dependency, just a shared resource: the live
+  CloudFront distribution's access logs and the HLS S3 bucket's access logs
+  both land in the same log bucket `s3-cloudfront` already provisions for the
+  frontend distribution and the ALB, rather than provisioning a fourth log
+  bucket just for this optional module.
 - **`iam-github-oidc`** sits downstream of everything it grants CI access to
   scope its IAM policy narrowly: it needs the ECS cluster ARN and both
   services' CodeDeploy application names to build a policy that can only
