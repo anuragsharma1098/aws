@@ -288,6 +288,8 @@ module "live_streaming" {
   cloudfront_certificate_arn = module.dns.cloudfront_certificate_arn
   live_fqdn                  = module.dns.live_fqdn
   web_acl_arn                = module.waf.cloudfront_web_acl_arn
+  logs_bucket_domain_name    = module.frontend.logs_bucket_domain_name
+  logs_bucket_name           = module.frontend.logs_bucket_name
   tags                       = local.common_tags
 }
 

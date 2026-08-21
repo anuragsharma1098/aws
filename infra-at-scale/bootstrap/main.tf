@@ -27,6 +27,32 @@ resource "aws_kms_key" "state" {
   deletion_window_in_days = 30
   enable_key_rotation     = true
 
+  # Default policy (root-only) plus an explicit grant for the S3 log delivery
+  # service principal - required for it to write SSE-KMS-encrypted access
+  # logs into aws_s3_bucket.state itself (see aws_s3_bucket_logging.state).
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "EnableRootAccountFullAccess"
+        Effect    = "Allow"
+        Principal = { AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root" }
+        Action    = "kms:*"
+        Resource  = "*"
+      },
+      {
+        Sid       = "AllowS3LogDeliveryEncrypt"
+        Effect    = "Allow"
+        Principal = { Service = "logging.s3.amazonaws.com" }
+        Action    = ["kms:GenerateDataKey", "kms:Decrypt"]
+        Resource  = "*"
+        Condition = {
+          StringEquals = { "aws:SourceAccount" = data.aws_caller_identity.current.account_id }
+        }
+      }
+    ]
+  })
+
   tags = {
     Name        = "infra-at-scale-tfstate-${var.environment}"
     Environment = var.environment
@@ -76,12 +102,40 @@ resource "aws_s3_bucket_public_access_block" "state" {
   restrict_public_buckets = true
 }
 
+# Self-targeted access logging under a distinct prefix - S3 access logging
+# never logs the log-delivery writes themselves, so this doesn't recurse.
+resource "aws_s3_bucket_logging" "state" {
+  bucket        = aws_s3_bucket.state.id
+  target_bucket = aws_s3_bucket.state.id
+  target_prefix = "s3-access-logs/"
+}
+
+resource "aws_s3_bucket_policy" "state" {
+  bucket = aws_s3_bucket.state.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "DenyInsecureTransport"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource  = [aws_s3_bucket.state.arn, "${aws_s3_bucket.state.arn}/*"]
+        Condition = {
+          Bool = { "aws:SecureTransport" = "false" }
+        }
+      }
+    ]
+  })
+}
+
 resource "aws_s3_bucket_lifecycle_configuration" "state" {
   bucket = aws_s3_bucket.state.id
 
   rule {
     id     = "expire-noncurrent-state-versions"
     status = "Enabled"
+    filter {}
 
     noncurrent_version_expiration {
       noncurrent_days = 90

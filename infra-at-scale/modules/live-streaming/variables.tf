@@ -20,6 +20,16 @@ variable "web_acl_arn" {
   type        = string
 }
 
+variable "logs_bucket_domain_name" {
+  description = "Shared access-log bucket's bucket_domain_name (from modules/s3-cloudfront) - the live CloudFront distribution logs here under a distinct prefix, same as the frontend distribution"
+  type        = string
+}
+
+variable "logs_bucket_name" {
+  description = "Same shared access-log bucket, by name rather than domain name - S3 server access logging (unlike CloudFront's logging_config) targets a bucket name, not a domain name"
+  type        = string
+}
+
 # --- Encoder-side connection details -----------------------------------
 # PLACEHOLDER: the venue encoder pushes RTP into MediaLive at the endpoint
 # AWS assigns this input after creation (visible on aws_medialive_input's

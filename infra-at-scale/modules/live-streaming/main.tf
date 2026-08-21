@@ -35,6 +35,14 @@ resource "aws_s3_bucket_public_access_block" "hls" {
   restrict_public_buckets = true
 }
 
+# Access logging into the shared SSE-S3 logs bucket - no KMS grant needed
+# since the target (unlike this bucket itself) isn't SSE-KMS encrypted.
+resource "aws_s3_bucket_logging" "hls" {
+  bucket        = aws_s3_bucket.hls.id
+  target_bucket = var.logs_bucket_name
+  target_prefix = "s3-hls/"
+}
+
 # Segments/manifests are transient - expire aggressively so a forgotten
 # channel doesn't accumulate storage cost indefinitely.
 resource "aws_s3_bucket_lifecycle_configuration" "hls" {
@@ -123,9 +131,9 @@ resource "aws_medialive_input_security_group" "ingest" {
 }
 
 resource "aws_medialive_input" "ingest" {
-  name                   = "${var.name_prefix}-rtp-input"
-  type                    = "RTP_PUSH"
-  input_security_groups  = [aws_medialive_input_security_group.ingest.id]
+  name                  = "${var.name_prefix}-rtp-input"
+  type                  = "RTP_PUSH"
+  input_security_groups = [aws_medialive_input_security_group.ingest.id]
 
   destinations {
     stream_name = var.stream_name
@@ -283,6 +291,12 @@ resource "aws_cloudfront_distribution" "hls" {
     acm_certificate_arn      = var.cloudfront_certificate_arn
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2021"
+  }
+
+  logging_config {
+    bucket          = var.logs_bucket_domain_name
+    prefix          = "cloudfront-live/"
+    include_cookies = false
   }
 
   tags = merge(var.tags, { Name = "${var.name_prefix}-hls-cf" })
