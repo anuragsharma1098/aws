@@ -1,0 +1,87 @@
+# PLACEHOLDER pipeline - copy to .github/workflows/ecs-blue-green-deploy.yml at
+# the repo root to activate. Builds and pushes an image, registers a new ECS
+# task definition revision, and hands the actual traffic cutover to
+# CodeDeploy - this is the mechanism modules/ecs-service-bluegreen's
+# `ignore_changes = [task_definition, load_balancer]` assumes is driving
+# deploys, not `terraform apply`.
+#
+# PLACEHOLDERS to fill in before this runs for real:
+#   - ECR_REPOSITORY: pre-existing ECR repo name (this repo's Terraform does
+#     not provision ECR - bring your own or add a small module for it)
+#   - Dockerfile / build context path for your actual application
+#   - secrets.AWS_ROLE_ARN_<ENV> per environment (see terraform-plan-apply.yml)
+name: infra-at-scale / ECS blue-green deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**" # PLACEHOLDER - your application source path
+      - "Dockerfile"
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ECR_REPOSITORY: CHANGE_ME-app # PLACEHOLDER
+  AWS_REGION: us-east-1
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.build.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr-login
+
+      - id: build
+        run: |
+          IMAGE_URI="${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
+          docker build -t "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+          # Pin every downstream deploy to the immutable digest, not the tag.
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE_URI")
+          echo "image=$DIGEST" >> "$GITHUB_OUTPUT"
+
+  deploy-dev:
+    needs: build
+    uses: ./.github/workflows/_deploy-env.yml # see _deploy-env.yml in this folder
+    with:
+      environment: dev
+      image: ${{ needs.build.outputs.image }}
+    secrets: inherit
+
+  deploy-qa:
+    needs: deploy-dev
+    uses: ./.github/workflows/_deploy-env.yml
+    with:
+      environment: qa
+      image: ${{ needs.build.outputs.image }}
+    secrets: inherit
+
+  deploy-staging:
+    needs: deploy-qa
+    uses: ./.github/workflows/_deploy-env.yml
+    with:
+      environment: staging
+      image: ${{ needs.build.outputs.image }}
+    secrets: inherit
+
+  deploy-prod:
+    needs: deploy-staging
+    # GitHub Environment "prod" should require manual reviewer approval -
+    # this job pauses here until approved, same digest promoted unchanged.
+    uses: ./.github/workflows/_deploy-env.yml
+    with:
+      environment: prod
+      image: ${{ needs.build.outputs.image }}
+    secrets: inherit
