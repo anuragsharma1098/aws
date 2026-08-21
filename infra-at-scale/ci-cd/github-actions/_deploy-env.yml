@@ -1,0 +1,81 @@
+# PLACEHOLDER pipeline - copy to .github/workflows/_deploy-env.yml. Reusable
+# workflow called by ecs-blue-green-deploy.yml once per environment. This is
+# where the actual blue/green cutover happens: register a new task
+# definition revision, render a CodeDeploy AppSpec, and hand it to
+# CodeDeploy - `aws deploy create-deployment` is what starts the blue/green
+# traffic shift; everything before it just prepares inputs.
+name: _deploy-env
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      image:
+        description: "Immutable image digest from the build job, e.g. <repo>@sha256:..."
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets[format('AWS_ROLE_ARN_{0}', inputs.environment)] }}
+          aws-region: us-east-1
+
+      # Pull the *current* task definition (Terraform's initial revision, or
+      # whatever the previous deploy registered) as the template for the new one.
+      - name: Download current task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition infra-at-scale-${{ inputs.environment }}-backend \
+            --query taskDefinition > task-definition.json
+
+      - name: Render new task definition with the freshly built image
+        id: render
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: app
+          image: ${{ inputs.image }}
+
+      - name: Register new task definition revision
+        id: register
+        run: |
+          TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://${{ steps.render.outputs.task-definition }} \
+            --query 'taskDefinition.taskDefinitionArn' --output text)
+          echo "arn=$TASK_DEF_ARN" >> "$GITHUB_OUTPUT"
+
+      - name: Render CodeDeploy AppSpec
+        run: |
+          cat > appspec.yaml <<EOF
+          version: 0.0
+          Resources:
+            - TargetService:
+                Type: AWS::ECS::Service
+                Properties:
+                  TaskDefinition: "${{ steps.register.outputs.arn }}"
+                  LoadBalancerInfo:
+                    ContainerName: "app"
+                    ContainerPort: 8080
+          EOF
+
+      # CodeDeploy stands up the new task set on the "green" target group,
+      # waits for target health + the deployment_ready_option, shifts the ALB
+      # listener per the deployment_config_name Terraform set on the
+      # deployment group, and auto-rolls-back on the CloudWatch alarms wired
+      # in from modules/monitoring.
+      - name: Create CodeDeploy blue/green deployment
+        run: |
+          aws deploy create-deployment \
+            --application-name infra-at-scale-${{ inputs.environment }}-backend \
+            --deployment-group-name infra-at-scale-${{ inputs.environment }}-backend-dg \
+            --revision "revisionType=AppSpecContent,appSpecContent={content=$(cat appspec.yaml | base64)}" \
+            --description "GitHub Actions ${{ github.sha }}"

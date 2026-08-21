@@ -1,0 +1,488 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1900 1450" role="img"
+     aria-label="AWS architecture for infra-at-scale: visitors resolve DNS via Route 53 and reach the frontend through WAF and CloudFront to S3, or the API through WAF and an Application Load Balancer into ECS Fargate backend and admin services running as blue/green pairs in private subnets, which read/write RDS Postgres via RDS Proxy and cache in ElastiCache Redis. A venue encoder pushes RTP into MediaLive, which writes HLS to S3 and is served by a second CloudFront distribution to viewers. GitHub Actions authenticates via OIDC and drives CodeDeploy to shift ALB traffic between blue and green target groups, with CloudWatch alarms feeding automatic rollback. KMS encrypts every data store, Secrets Manager holds every credential, and security groups restrict every tier to only the tier above it.">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#334155"/>
+    </marker>
+    <marker id="arrow-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#94a3b8"/>
+    </marker>
+    <marker id="arrow-security" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#DD344C"/>
+    </marker>
+    <marker id="arrow-deploy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#ED7100"/>
+    </marker>
+    <marker id="arrow-observe" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#E7157B"/>
+    </marker>
+
+    <!-- Icon symbols: colored badge (category color) + a simplified white pictogram -->
+    <symbol id="s-actor" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#5B6472"/>
+      <circle cx="32" cy="24" r="9" fill="none" stroke="#fff" stroke-width="3"/>
+      <path d="M17,50 C17,38 47,38 47,50" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="s-encoder" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#5B6472"/>
+      <rect x="14" y="24" width="24" height="18" rx="2" fill="none" stroke="#fff" stroke-width="3"/>
+      <path d="M38,29 L48,24 L48,42 L38,37 Z" fill="none" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/>
+      <circle cx="20" cy="20" r="2.5" fill="#fff"/>
+    </symbol>
+    <symbol id="s-github" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#5B6472"/>
+      <circle cx="24" cy="26" r="5.5" fill="none" stroke="#fff" stroke-width="2.75"/>
+      <circle cx="42" cy="20" r="5.5" fill="none" stroke="#fff" stroke-width="2.75"/>
+      <circle cx="24" cy="44" r="5.5" fill="none" stroke="#fff" stroke-width="2.75"/>
+      <path d="M24,31.5 V38.5" fill="none" stroke="#fff" stroke-width="2.75"/>
+      <path d="M29,26 H36.5" fill="none" stroke="#fff" stroke-width="2.75"/>
+    </symbol>
+    <symbol id="s-route53" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#8C4FFF"/>
+      <circle cx="32" cy="32" r="15" fill="none" stroke="#fff" stroke-width="3"/>
+      <circle cx="32" cy="32" r="4" fill="#fff"/>
+    </symbol>
+    <symbol id="s-cloudfront" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#8C4FFF"/>
+      <circle cx="32" cy="32" r="8" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <circle cx="32" cy="15" r="3" fill="#fff"/>
+      <circle cx="32" cy="49" r="3" fill="#fff"/>
+      <circle cx="15" cy="32" r="3" fill="#fff"/>
+      <circle cx="49" cy="32" r="3" fill="#fff"/>
+      <line x1="32" y1="24" x2="32" y2="18" stroke="#fff" stroke-width="1.5"/>
+      <line x1="32" y1="40" x2="32" y2="46" stroke="#fff" stroke-width="1.5"/>
+      <line x1="24" y1="32" x2="18" y2="32" stroke="#fff" stroke-width="1.5"/>
+      <line x1="40" y1="32" x2="46" y2="32" stroke="#fff" stroke-width="1.5"/>
+    </symbol>
+    <symbol id="s-waf" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#DD344C"/>
+      <path d="M32,14 L46,20 L46,33 C46,43 40,49 32,52 C24,49 18,43 18,33 L18,20 Z" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <path d="M25,32 L29,37 L40,25" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="s-alb" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#8C4FFF"/>
+      <circle cx="32" cy="32" r="5" fill="#fff"/>
+      <circle cx="18" cy="20" r="3" fill="#fff"/>
+      <circle cx="46" cy="20" r="3" fill="#fff"/>
+      <circle cx="32" cy="47" r="3" fill="#fff"/>
+      <line x1="28" y1="29" x2="20" y2="22" stroke="#fff" stroke-width="2"/>
+      <line x1="36" y1="29" x2="44" y2="22" stroke="#fff" stroke-width="2"/>
+      <line x1="32" y1="37" x2="32" y2="44" stroke="#fff" stroke-width="2"/>
+    </symbol>
+    <symbol id="s-igw" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#8C4FFF"/>
+      <circle cx="32" cy="32" r="15" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <line x1="15" y1="32" x2="49" y2="32" stroke="#fff" stroke-width="2.5" marker-end="url(#arrow)"/>
+    </symbol>
+    <symbol id="s-nat" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#8C4FFF"/>
+      <rect x="16" y="20" width="32" height="24" rx="3" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <line x1="22" y1="32" x2="40" y2="32" stroke="#fff" stroke-width="2.5" marker-end="url(#arrow)"/>
+    </symbol>
+    <symbol id="s-ecs" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#ED7100"/>
+      <rect x="15" y="15" width="15" height="15" rx="2" fill="#fff"/>
+      <rect x="34" y="15" width="15" height="15" rx="2" fill="#fff" opacity="0.85"/>
+      <rect x="15" y="34" width="15" height="15" rx="2" fill="#fff" opacity="0.85"/>
+      <rect x="34" y="34" width="15" height="15" rx="2" fill="#fff" opacity="0.7"/>
+    </symbol>
+    <symbol id="s-codedeploy" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#ED7100"/>
+      <rect x="12" y="22" width="16" height="16" rx="2" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <rect x="36" y="22" width="16" height="16" rx="2" fill="#fff"/>
+      <path d="M29,18 C34,14 42,14 46,19" fill="none" stroke="#fff" stroke-width="2.25" marker-end="url(#arrow)"/>
+    </symbol>
+    <symbol id="s-ecr" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#ED7100"/>
+      <rect x="16" y="21" width="30" height="24" rx="2" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <line x1="16" y1="30" x2="46" y2="30" stroke="#fff" stroke-width="2"/>
+      <circle cx="41" cy="17" r="3.5" fill="#fff"/>
+    </symbol>
+    <symbol id="s-rds" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#2E73B8"/>
+      <ellipse cx="32" cy="20" rx="14" ry="5" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <line x1="18" y1="20" x2="18" y2="43" stroke="#fff" stroke-width="2.5"/>
+      <line x1="46" y1="20" x2="46" y2="43" stroke="#fff" stroke-width="2.5"/>
+      <path d="M18,43 A14,5 0 0 0 46,43" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <path d="M18,32 A14,5 0 0 0 46,32" fill="none" stroke="#fff" stroke-width="1.5" opacity="0.7"/>
+    </symbol>
+    <symbol id="s-rdsproxy" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#2E73B8"/>
+      <ellipse cx="32" cy="17" rx="12" ry="4.5" fill="none" stroke="#fff" stroke-width="2.25"/>
+      <line x1="20" y1="17" x2="20" y2="34" stroke="#fff" stroke-width="2.25"/>
+      <line x1="44" y1="17" x2="44" y2="34" stroke="#fff" stroke-width="2.25"/>
+      <path d="M20,34 A12,4.5 0 0 0 44,34" fill="none" stroke="#fff" stroke-width="2.25"/>
+      <path d="M22,40 L32,50 L42,40 Z" fill="none" stroke="#fff" stroke-width="2.25" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="s-elasticache" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#527FFF"/>
+      <ellipse cx="32" cy="20" rx="14" ry="5" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <line x1="18" y1="20" x2="18" y2="43" stroke="#fff" stroke-width="2.5"/>
+      <line x1="46" y1="20" x2="46" y2="43" stroke="#fff" stroke-width="2.5"/>
+      <path d="M18,43 A14,5 0 0 0 46,43" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <path d="M34,14 L27,29 L33,29 L28,42 L42,24 L35,24 Z" fill="#fff" opacity="0.95"/>
+    </symbol>
+    <symbol id="s-s3" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#7AA116"/>
+      <path d="M20,18 L44,18 L40,47 L24,47 Z" fill="none" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/>
+      <line x1="22" y1="25" x2="42" y2="25" stroke="#fff" stroke-width="2"/>
+    </symbol>
+    <symbol id="s-secrets" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#DD344C"/>
+      <rect x="21" y="30" width="22" height="18" rx="3" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <path d="M25,30 V25 A7,7 0 0 1 39,25 V30" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <circle cx="32" cy="39" r="2.5" fill="#fff"/>
+    </symbol>
+    <symbol id="s-kms" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#DD344C"/>
+      <circle cx="23" cy="25" r="8" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <line x1="29" y1="31" x2="46" y2="48" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="38" y1="40" x2="43" y2="35" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+      <line x1="42" y1="44" x2="47" y2="39" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="s-sg" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#DD344C"/>
+      <rect x="20" y="28" width="24" height="20" rx="3" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <path d="M24,28 V22 A8,8 0 0 1 40,22 V28" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <line x1="32" y1="36" x2="32" y2="42" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="s-iam" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#DD344C"/>
+      <path d="M32,14 L46,20 L46,33 C46,43 40,49 32,52 C24,49 18,43 18,33 L18,20 Z" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <line x1="22" y1="31" x2="42" y2="31" stroke="#fff" stroke-width="2.5"/>
+      <line x1="22" y1="37" x2="42" y2="37" stroke="#fff" stroke-width="2"/>
+    </symbol>
+    <symbol id="s-cloudwatch" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#E7157B"/>
+      <circle cx="32" cy="32" r="16" fill="none" stroke="#fff" stroke-width="2.5"/>
+      <polyline points="20,34 26,34 29,24 34,40 38,30 44,30" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="s-sns" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#E7157B"/>
+      <path d="M32,15 C25,15 22,22 22,29 L22,37 L17,42 L47,42 L42,37 L42,29 C42,22 39,15 32,15 Z" fill="none" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/>
+      <circle cx="32" cy="48" r="3" fill="#fff"/>
+    </symbol>
+    <symbol id="s-medialive" viewBox="0 0 64 64">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#01A88D"/>
+      <circle cx="32" cy="32" r="4" fill="#fff"/>
+      <path d="M25,25 A10,10 0 0 1 39,25" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M20,20 A18,18 0 0 1 44,20" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M25,39 A10,10 0 0 0 39,39" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M20,44 A18,18 0 0 0 44,44" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+    </symbol>
+  </defs>
+
+  <!-- Canvas -->
+  <rect x="0" y="0" width="1900" height="1450" fill="#eef1f5"/>
+  <rect x="10" y="10" width="1880" height="1430" rx="16" fill="#ffffff" stroke="#d8dee6" stroke-width="1.5"/>
+
+  <text x="950" y="40" text-anchor="middle" font-family="sans-serif" font-size="23" font-weight="700" fill="#1a2130">AWS Architecture — infra-at-scale</text>
+  <text x="950" y="63" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#64748b">Terraform module map, request flow &amp; user interaction · one environment shown (dev/qa/staging/prod wire identically — see docs/02-module-connections.md)</text>
+
+  <!-- ================= USERS COLUMN ================= -->
+  <text x="85" y="118" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="600" fill="#64748b">Users</text>
+
+  <use href="#s-actor" x="50" y="150" width="70" height="70"/>
+  <text x="85" y="238" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#334155">Visitor</text>
+  <text x="85" y="251" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#64748b">browser · frontend + API</text>
+
+  <use href="#s-actor" x="50" y="340" width="70" height="70"/>
+  <text x="85" y="428" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#334155">Admin</text>
+  <text x="85" y="441" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#64748b">operator · admin service</text>
+
+  <use href="#s-github" x="50" y="530" width="70" height="70"/>
+  <text x="85" y="618" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#334155">Developer</text>
+  <text x="85" y="631" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#64748b">git push → CI/CD (bottom-right)</text>
+
+  <!-- ================= EDGE ZONE ================= -->
+  <use href="#s-route53" x="230" y="150" width="70" height="70"/>
+  <text x="265" y="238" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#334155">Route 53</text>
+  <text x="265" y="251" text-anchor="middle" font-family="sans-serif" font-size="9.5" fill="#64748b">www.&lt;domain&gt; · app.&lt;domain&gt;</text>
+  <text x="265" y="263" text-anchor="middle" font-family="sans-serif" font-size="9.5" fill="#64748b">live.&lt;domain&gt;</text>
+
+  <use href="#s-waf" x="400" y="90" width="70" height="70"/>
+  <text x="435" y="178" text-anchor="middle" font-family="sans-serif" font-size="11.5" fill="#334155">WAF</text>
+  <text x="435" y="191" text-anchor="middle" font-family="sans-serif" font-size="9.5" fill="#64748b">CloudFront scope</text>
+
+  <use href="#s-cloudfront" x="560" y="90" width="70" height="70"/>
+  <text x="595" y="178" text-anchor="middle" font-family="sans-serif" font-size="11.5" fill="#334155">CloudFront</text>
+  <text x="595" y="191" text-anchor="middle" font-family="sans-serif" font-size="9.5" fill="#64748b">frontend</text>
+
+  <use href="#s-s3" x="560" y="240" width="70" height="70"/>
+  <text x="595" y="328" text-anchor="middle" font-family="sans-serif" font-size="11.5" fill="#334155">S3 · frontend</text>
+  <text x="595" y="341" text-anchor="middle" font-family="sans-serif" font-size="9.5" fill="#64748b">private, OAC-only read</text>
+
+  <use href="#s-waf" x="400" y="290" width="70" height="70"/>
+  <text x="435" y="378" text-anchor="middle" font-family="sans-serif" font-size="11.5" fill="#334155">WAF</text>
+  <text x="435" y="391" text-anchor="middle" font-family="sans-serif" font-size="9.5" fill="#64748b">Regional (ALB) scope</text>
+
+  <!-- Edge arrows -->
+  <line x1="120" y1="182" x2="228" y2="182" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="128" y="164" width="60" height="15" fill="#ffffff" opacity="0.9"/>
+  <text x="158" y="175" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#334155">① resolve</text>
+
+  <line x1="300" y1="175" x2="398" y2="125" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="305" y="140" width="95" height="15" fill="#ffffff" opacity="0.9"/>
+  <text x="352" y="151" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#334155">② HTTPS · www</text>
+
+  <line x1="470" y1="125" x2="558" y2="125" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <line x1="595" y1="160" x2="595" y2="238" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="605" y="192" width="90" height="15" fill="#ffffff" opacity="0.9"/>
+  <text x="650" y="203" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#334155">origin (OAC)</text>
+
+  <line x1="120" y1="375" x2="398" y2="330" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="175" y="345" width="95" height="15" fill="#ffffff" opacity="0.9"/>
+  <text x="222" y="356" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#334155">④ HTTPS · admin</text>
+
+  <line x1="300" y1="220" x2="398" y2="315" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="300" y="252" width="95" height="15" fill="#ffffff" opacity="0.9"/>
+  <text x="347" y="263" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#334155">③ HTTPS · api</text>
+
+  <line x1="470" y1="325" x2="1028" y2="115" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="700" y="205" width="230" height="15" fill="#ffffff" opacity="0.9"/>
+  <text x="815" y="216" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#334155">filters → forwards (api :443, admin :8443)</text>
+
+  <!-- ================= VPC BOX ================= -->
+  <rect x="700" y="150" width="1160" height="700" rx="14" fill="none" stroke="#8C4FFF" stroke-width="2" stroke-dasharray="7,5"/>
+  <text x="718" y="172" font-family="sans-serif" font-size="13" font-weight="700" fill="#8C4FFF">VPC · 10.x.0.0/16 (modules/vpc)</text>
+
+  <use href="#s-alb" x="1030" y="50" width="90" height="90"/>
+  <text x="1075" y="158" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#334155">ALB</text>
+  <text x="1075" y="171" text-anchor="middle" font-family="sans-serif" font-size="9.5" fill="#64748b">2 listeners, blue/green TG pairs</text>
+
+  <use href="#s-igw" x="1780" y="50" width="70" height="70"/>
+  <text x="1815" y="138" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">Internet GW</text>
+
+  <!-- Public subnets -->
+  <rect x="730" y="190" width="1100" height="150" rx="10" fill="#faf7ff" stroke="#c9b3ff" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="746" y="211" font-family="sans-serif" font-size="12" font-weight="600" fill="#7c3aed">Public subnets (2+ AZs)</text>
+
+  <use href="#s-nat" x="780" y="228" width="70" height="70"/>
+  <text x="815" y="316" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">NAT GW · AZ-a</text>
+
+  <use href="#s-nat" x="980" y="228" width="70" height="70"/>
+  <text x="1015" y="316" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">NAT GW · AZ-b*</text>
+  <text x="1180" y="316" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">*single shared NAT in dev/qa; one per AZ in staging/prod</text>
+
+  <line x1="838" y1="255" x2="1778" y2="90" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow-muted)"/>
+  <line x1="1038" y1="255" x2="1778" y2="95" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow-muted)"/>
+  <rect x="1350" y="150" width="60" height="15" fill="#ffffff" opacity="0.9"/>
+  <text x="1380" y="161" text-anchor="middle" font-family="sans-serif" font-size="9.5" fill="#64748b">outbound</text>
+
+  <!-- App (private) subnets -->
+  <rect x="730" y="360" width="1100" height="230" rx="10" fill="#f4f2fb" stroke="#c9b3ff" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="746" y="381" font-family="sans-serif" font-size="12" font-weight="600" fill="#7c3aed">Private subnets · Application layer</text>
+  <text x="746" y="573" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">ECS Fargate cluster (modules/ecs-cluster) · tasks run here, never on a public IP</text>
+
+  <use href="#s-ecs" x="790" y="400" width="70" height="70"/>
+  <text x="825" y="488" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">backend · blue</text>
+  <text x="825" y="501" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">active</text>
+
+  <use href="#s-ecs" x="910" y="400" width="70" height="70" opacity="0.5"/>
+  <text x="945" y="488" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#64748b">backend · green</text>
+  <text x="945" y="501" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#94a3b8">standby</text>
+
+  <text x="885" y="520" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">blue/green pair · modules/ecs-service-bluegreen</text>
+
+  <use href="#s-ecs" x="1080" y="400" width="70" height="70"/>
+  <text x="1115" y="488" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">admin · blue</text>
+  <text x="1115" y="501" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">active</text>
+
+  <use href="#s-ecs" x="1200" y="400" width="70" height="70" opacity="0.5"/>
+  <text x="1235" y="488" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#64748b">admin · green</text>
+  <text x="1235" y="501" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#94a3b8">standby</text>
+
+  <text x="1175" y="520" text-anchor="middle" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">blue/green pair · modules/ecs-service-bluegreen</text>
+
+  <line x1="1082" y1="140" x2="825" y2="398" stroke="#334155" stroke-width="1.75" marker-end="url(#arrow)"/>
+  <rect x="880" y="255" width="110" height="15" fill="#ffffff" opacity="0.9"/>
+  <text x="935" y="266" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#334155">forwards :8080</text>
+
+  <line x1="1108" y1="140" x2="1115" y2="398" stroke="#334155" stroke-width="1.75" marker-end="url(#arrow)"/>
+  <rect x="1120" y="255" width="105" height="15" fill="#ffffff" opacity="0.9"/>
+  <text x="1172" y="266" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#334155">forwards :8081</text>
+
+  <!-- Data (private) subnets -->
+  <rect x="730" y="610" width="1100" height="230" rx="10" fill="#f4f2fb" stroke="#c9b3ff" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="746" y="631" font-family="sans-serif" font-size="12" font-weight="600" fill="#7c3aed">Private subnets · Data layer</text>
+
+  <use href="#s-rdsproxy" x="790" y="650" width="70" height="70"/>
+  <text x="825" y="738" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">RDS Proxy</text>
+
+  <use href="#s-rds" x="930" y="650" width="70" height="70"/>
+  <text x="965" y="738" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">RDS · primary</text>
+  <text x="965" y="751" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">Multi-AZ (staging/prod)</text>
+
+  <use href="#s-rds" x="1070" y="650" width="70" height="70" opacity="0.7"/>
+  <text x="1105" y="738" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#64748b">RDS · read replica</text>
+
+  <use href="#s-elasticache" x="1230" y="650" width="70" height="70"/>
+  <text x="1265" y="738" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">ElastiCache</text>
+  <text x="1265" y="751" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">Redis Serverless</text>
+
+  <line x1="825" y1="470" x2="825" y2="648" stroke="#334155" stroke-width="1.75" marker-end="url(#arrow)"/>
+  <rect x="835" y="555" width="45" height="15" fill="#ffffff" opacity="0.9"/>
+  <text x="857" y="566" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#334155">SQL</text>
+
+  <line x1="860" y1="685" x2="928" y2="685" stroke="#334155" stroke-width="1.75" marker-end="url(#arrow)"/>
+  <rect x="866" y="667" width="55" height="14" fill="#ffffff" opacity="0.9"/>
+  <text x="893" y="678" text-anchor="middle" font-family="sans-serif" font-size="9.5" fill="#334155">writes</text>
+
+  <line x1="860" y1="705" x2="1068" y2="695" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="925" y="700" width="50" height="14" fill="#ffffff" opacity="0.9"/>
+  <text x="950" y="711" text-anchor="middle" font-family="sans-serif" font-size="9.5" fill="#334155">reads</text>
+
+  <line x1="860" y1="460" x2="1265" y2="648" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="1020" y="545" width="45" height="14" fill="#ffffff" opacity="0.9"/>
+  <text x="1042" y="555" text-anchor="middle" font-family="sans-serif" font-size="9.5" fill="#334155">cache</text>
+
+  <line x1="1115" y1="470" x2="850" y2="655" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow-muted)"/>
+  <rect x="945" y="580" width="35" height="14" fill="#ffffff" opacity="0.9"/>
+  <text x="962" y="590" text-anchor="middle" font-family="sans-serif" font-size="9.5" fill="#64748b">SQL</text>
+
+  <text x="746" y="820" font-family="sans-serif" font-size="9.5" font-style="italic" fill="#94a3b8">modules/rds + modules/elasticache · reachable only from the ECS tasks' security group (modules/security-groups)</text>
+
+  <!-- ================= LIVE STREAMING LANE ================= -->
+  <rect x="40" y="870" width="1000" height="210" rx="10" fill="#f0fdfa" stroke="#8fded0" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="56" y="892" font-family="sans-serif" font-size="12" font-weight="600" fill="#0f766e">Live streaming pipeline (modules/live-streaming) · decoupled from the VPC</text>
+
+  <use href="#s-encoder" x="70" y="920" width="70" height="70"/>
+  <text x="105" y="1008" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">Venue Encoder</text>
+  <text x="105" y="1021" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">RTP push, IP-allowlisted</text>
+
+  <use href="#s-medialive" x="250" y="920" width="70" height="70"/>
+  <text x="285" y="1008" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">MediaLive</text>
+  <text x="285" y="1021" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">transcodes to HLS</text>
+
+  <use href="#s-s3" x="430" y="920" width="70" height="70"/>
+  <text x="465" y="1008" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">S3 · HLS segments</text>
+
+  <use href="#s-cloudfront" x="610" y="920" width="70" height="70"/>
+  <text x="645" y="1008" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">CloudFront · live</text>
+  <text x="645" y="1021" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">shares the WAF·CloudFront ACL above</text>
+
+  <use href="#s-actor" x="790" y="920" width="70" height="70"/>
+  <text x="825" y="1008" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">Viewer</text>
+  <text x="825" y="1021" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">HLS playback</text>
+
+  <line x1="140" y1="955" x2="248" y2="955" stroke="#334155" stroke-width="1.75" marker-end="url(#arrow)"/>
+  <line x1="320" y1="955" x2="428" y2="955" stroke="#334155" stroke-width="1.75" marker-end="url(#arrow)"/>
+  <line x1="500" y1="955" x2="608" y2="955" stroke="#334155" stroke-width="1.75" marker-end="url(#arrow)"/>
+  <line x1="680" y1="955" x2="788" y2="955" stroke="#334155" stroke-width="1.75" marker-end="url(#arrow)"/>
+
+  <!-- ================= CI/CD ROW ================= -->
+  <rect x="1080" y="870" width="780" height="210" rx="10" fill="#fff7ed" stroke="#f3c896" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="1096" y="892" font-family="sans-serif" font-size="12" font-weight="600" fill="#9a3412">CI/CD · GitHub Actions (modules/iam-github-oidc)</text>
+
+  <use href="#s-github" x="1110" y="920" width="70" height="70"/>
+  <text x="1145" y="1008" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">GitHub Actions</text>
+  <text x="1145" y="1021" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">build, push, promote</text>
+
+  <use href="#s-iam" x="1290" y="920" width="70" height="70"/>
+  <text x="1325" y="1008" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">iam-github-oidc</text>
+  <text x="1325" y="1021" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">OIDC, no long-lived keys</text>
+
+  <use href="#s-codedeploy" x="1470" y="920" width="70" height="70"/>
+  <text x="1505" y="1008" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">CodeDeploy</text>
+  <text x="1505" y="1021" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">create-deployment</text>
+
+  <line x1="1180" y1="955" x2="1288" y2="955" stroke="#334155" stroke-width="1.75" marker-end="url(#arrow)"/>
+  <rect x="1185" y="937" width="95" height="14" fill="#ffffff" opacity="0.9"/>
+  <text x="1232" y="947" text-anchor="middle" font-family="sans-serif" font-size="9.5" fill="#334155">assumes role</text>
+
+  <line x1="1360" y1="955" x2="1468" y2="955" stroke="#334155" stroke-width="1.75" marker-end="url(#arrow)"/>
+  <rect x="1365" y="937" width="95" height="14" fill="#ffffff" opacity="0.9"/>
+  <text x="1412" y="947" text-anchor="middle" font-family="sans-serif" font-size="9.5" fill="#334155">authorizes</text>
+
+  <line x1="1500" y1="918" x2="880" y2="472" stroke="#ED7100" stroke-width="1.75" stroke-dasharray="6,4" marker-end="url(#arrow-deploy)"/>
+  <line x1="1500" y1="918" x2="1150" y2="472" stroke="#ED7100" stroke-width="1.75" stroke-dasharray="6,4" marker-end="url(#arrow-deploy)"/>
+  <rect x="1160" y="700" width="150" height="15" fill="#ffffff" opacity="0.92"/>
+  <text x="1235" y="711" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#ED7100">shifts blue↔green traffic</text>
+
+  <!-- ================= SECURITY / SECRETS / OBSERVABILITY ROW ================= -->
+  <rect x="40" y="1120" width="1820" height="190" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+  <text x="56" y="1142" font-family="sans-serif" font-size="12" font-weight="700" fill="#475569">Security, secrets, observability &amp; state — spans every module above</text>
+
+  <use href="#s-secrets" x="70" y="1160" width="70" height="70"/>
+  <text x="105" y="1248" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">Secrets Manager</text>
+  <text x="105" y="1261" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">DB creds + app secrets</text>
+
+  <use href="#s-kms" x="300" y="1160" width="70" height="70"/>
+  <text x="335" y="1248" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">KMS</text>
+  <text x="335" y="1261" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">encrypts RDS, Redis,</text>
+  <text x="335" y="1273" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">Secrets, S3 ×3, Logs, SNS</text>
+
+  <use href="#s-sg" x="530" y="1160" width="70" height="70"/>
+  <text x="565" y="1248" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">Security Groups</text>
+  <text x="565" y="1261" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">ALB→ECS→RDS/Redis only</text>
+
+  <use href="#s-iam" x="760" y="1160" width="70" height="70"/>
+  <text x="795" y="1248" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">IAM · iam-ecs</text>
+  <text x="795" y="1261" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">execution + task role,</text>
+  <text x="795" y="1273" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">separate per service</text>
+
+  <use href="#s-cloudwatch" x="990" y="1160" width="70" height="70"/>
+  <text x="1025" y="1248" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">CloudWatch</text>
+  <text x="1025" y="1261" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">Container Insights,</text>
+  <text x="1025" y="1273" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">ALB/ECS/RDS alarms</text>
+
+  <use href="#s-sns" x="1220" y="1160" width="70" height="70"/>
+  <text x="1255" y="1248" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">SNS</text>
+  <text x="1255" y="1261" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">alarm_notification_email</text>
+
+  <use href="#s-ecr" x="1450" y="1160" width="70" height="70"/>
+  <text x="1485" y="1248" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">ECR</text>
+  <text x="1485" y="1261" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">pre-existing, referenced</text>
+  <text x="1485" y="1273" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">by CI (not this repo)</text>
+
+  <use href="#s-s3" x="1680" y="1160" width="70" height="70"/>
+  <text x="1715" y="1248" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#334155">S3 + DynamoDB</text>
+  <text x="1715" y="1261" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#64748b">bootstrap/ · state + lock</text>
+
+  <line x1="140" y1="1195" x2="298" y2="1195" stroke="#DD344C" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow-security)"/>
+  <line x1="335" y1="1158" x2="965" y2="720" stroke="#DD344C" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow-security)"/>
+  <rect x="600" y="960" width="70" height="14" fill="#ffffff" opacity="0.92"/>
+  <text x="635" y="970" text-anchor="middle" font-family="sans-serif" font-size="9.5" fill="#DD344C">encrypts</text>
+
+  <line x1="1060" y1="1190" x2="1218" y2="1190" stroke="#334155" stroke-width="1.75" marker-end="url(#arrow)"/>
+  <rect x="1065" y="1172" width="85" height="14" fill="#ffffff" opacity="0.92"/>
+  <text x="1108" y="1182" text-anchor="middle" font-family="sans-serif" font-size="9.5" fill="#334155">alarm ⇒ topic</text>
+
+  <line x1="1050" y1="1160" x2="1500" y2="992" stroke="#E7157B" stroke-width="1.75" stroke-dasharray="6,4" marker-end="url(#arrow-observe)"/>
+  <rect x="1250" y="1055" width="140" height="14" fill="#ffffff" opacity="0.92"/>
+  <text x="1320" y="1065" text-anchor="middle" font-family="sans-serif" font-size="9.5" fill="#E7157B">auto-rollback on alarm</text>
+
+  <!-- ================= LEGEND ================= -->
+  <line x1="60" y1="1330" x2="1840" y2="1330" stroke="#e2e8f0" stroke-width="1"/>
+
+  <text x="60" y="1353" font-family="sans-serif" font-size="11" font-weight="700" fill="#475569">Category:</text>
+  <rect x="150" y="1345" width="14" height="14" rx="3" fill="#8C4FFF"/>
+  <text x="170" y="1356" font-family="sans-serif" font-size="11" fill="#475569">Networking &amp; CDN</text>
+  <rect x="320" y="1345" width="14" height="14" rx="3" fill="#ED7100"/>
+  <text x="340" y="1356" font-family="sans-serif" font-size="11" fill="#475569">Compute &amp; Deploy</text>
+  <rect x="500" y="1345" width="14" height="14" rx="3" fill="#2E73B8"/>
+  <text x="520" y="1356" font-family="sans-serif" font-size="11" fill="#475569">Database &amp; Cache</text>
+  <rect x="670" y="1345" width="14" height="14" rx="3" fill="#7AA116"/>
+  <text x="690" y="1356" font-family="sans-serif" font-size="11" fill="#475569">Storage</text>
+  <rect x="780" y="1345" width="14" height="14" rx="3" fill="#DD344C"/>
+  <text x="800" y="1356" font-family="sans-serif" font-size="11" fill="#475569">Security &amp; Identity</text>
+  <rect x="970" y="1345" width="14" height="14" rx="3" fill="#E7157B"/>
+  <text x="990" y="1356" font-family="sans-serif" font-size="11" fill="#475569">Management &amp; Observability</text>
+  <rect x="1260" y="1345" width="14" height="14" rx="3" fill="#01A88D"/>
+  <text x="1280" y="1356" font-family="sans-serif" font-size="11" fill="#475569">Media Services</text>
+  <rect x="1440" y="1345" width="14" height="14" rx="3" fill="#5B6472"/>
+  <text x="1460" y="1356" font-family="sans-serif" font-size="11" fill="#475569">External actor / SaaS</text>
+
+  <text x="60" y="1393" font-family="sans-serif" font-size="11" font-weight="700" fill="#475569">Line style:</text>
+  <line x1="150" y1="1389" x2="180" y2="1389" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="188" y="1393" font-family="sans-serif" font-size="11" fill="#475569">request / data flow</text>
+  <line x1="360" y1="1389" x2="390" y2="1389" stroke="#94a3b8" stroke-width="1.75" stroke-dasharray="5,4" marker-end="url(#arrow-muted)"/>
+  <text x="398" y="1393" font-family="sans-serif" font-size="11" fill="#475569">outbound / optional</text>
+  <line x1="580" y1="1389" x2="610" y2="1389" stroke="#ED7100" stroke-width="1.75" stroke-dasharray="6,4" marker-end="url(#arrow-deploy)"/>
+  <text x="618" y="1393" font-family="sans-serif" font-size="11" fill="#475569">deploy control (CodeDeploy)</text>
+  <line x1="850" y1="1389" x2="880" y2="1389" stroke="#E7157B" stroke-width="1.75" stroke-dasharray="6,4" marker-end="url(#arrow-observe)"/>
+  <text x="888" y="1393" font-family="sans-serif" font-size="11" fill="#475569">alarm feed</text>
+  <line x1="1020" y1="1389" x2="1050" y2="1389" stroke="#DD344C" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow-security)"/>
+  <text x="1058" y="1393" font-family="sans-serif" font-size="11" fill="#475569">security / encryption control</text>
+</svg>
